@@ -69,7 +69,7 @@ async fn main() -> Result<(), anyhow::Error> {
         let mountpoint = params.get("mountpoint").unwrap();
         let username = params.get("username").unwrap();
         let password = params.get("password").unwrap();
-        let server = NtripConfig::new(&host, &port, &mountpoint, &username, &password);
+        let server = NtripConfig::new(host, port, mountpoint, username, password);
 
         log::info!("Connecting to server with config: {server:?}");
         // TODO(lucasw) need the error type to be able to use '?' here
@@ -82,12 +82,18 @@ async fn main() -> Result<(), anyhow::Error> {
 
         {
             tokio::spawn(async move {
-                while let Some(Ok(nmea)) = nmea_sub.next().await {
-                    // TODO(lucasw) need to send nmea.sentence to server
-                    nmea_sender.send(nmea).await.unwrap();
+                while let Some(nmea) = nmea_sub.next().await {
+                    match nmea {
+                        Ok(nmea) => {
+                            nmea_sender.send(nmea).await.unwrap();
+                        }
+                        Err(rv) => {
+                            log::error!("error with nmea reception: {rv:?}");
+                        }
+                    }
                 }
 
-                log::error!("done with nmea reception, need to restart");
+                panic!("done with nmea reception, need to restart");
             });
         }
 
