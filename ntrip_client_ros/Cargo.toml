@@ -1,0 +1,28 @@
+[package]
+name = "ntrip_client_ros"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.98"
+clap = "4.5.36"
+log = "0.4.27"
+ntrip_client = {path="../../ntrip_client_rust"}
+rtcm_parser = {git="https://github.com/TonyWelte/rtcm_parser.git"}
+simple_logger = "5.0.0"
+tokio = "1.44.2"
+
+[dependencies.roslibrust]
+git = "https://github.com/lucasw/roslibrust"
+branch = "get_rx_msg_def_v0_12"
+features = ["ros1"]
+
+[dependencies.roslibrust_util]
+git = "https://github.com/lucasw/tf_roslibrust"
+version = "0.2.0"
+
+[dependencies.tf_roslibrust]
+git = "https://github.com/lucasw/tf_roslibrust"
+# even if this is the default branch it won't match with dependencies that specify it explicitly
+# (which vimjay below does, so need to add it here)
+version = "0.2.5"
