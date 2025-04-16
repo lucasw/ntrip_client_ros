@@ -10,7 +10,7 @@ use anyhow::Context;
 use clap::command;
 use ntrip_client::ntrip_client::{NtripClientError, NtripConfig};
 use roslibrust::ros1::NodeHandle;
-use roslibrust_util::{nmea_msgs, mavros_msgs::RTCM};
+use roslibrust_util::{mavros_msgs::RTCM, nmea_msgs};
 use rtcm_parser::rtcm_parser::RtcmParser;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -55,14 +55,10 @@ async fn main() -> Result<(), anyhow::Error> {
 
     {
         let rtcm_topic = remaps.get("rtcm").context("no rtcm topic found")?;
-        let rtcm_pub = nh
-            .advertise::<RTCM>(rtcm_topic, 3, false)
-            .await?;
+        let rtcm_pub = nh.advertise::<RTCM>(rtcm_topic, 3, false).await?;
 
         let nmea_topic = remaps.get("nmea").context("no nmea topic found")?;
-        let mut nmea_sub = nh
-            .subscribe::<nmea_msgs::Sentence>(nmea_topic, 2)
-            .await?;
+        let mut nmea_sub = nh.subscribe::<nmea_msgs::Sentence>(nmea_topic, 2).await?;
 
         let host = params.get("host").unwrap();
         let port = params.get("port").unwrap();
@@ -76,7 +72,9 @@ async fn main() -> Result<(), anyhow::Error> {
         let connection = server.connect().await.unwrap();
         log::info!("connected: {connection:?}");
 
-        let mut stream = ntrip_client::ntrip_client::init_stream(connection).await.unwrap();
+        let mut stream = ntrip_client::ntrip_client::init_stream(connection)
+            .await
+            .unwrap();
 
         let (nmea_sender, mut nmea_receiver) = mpsc::channel(10);
 
