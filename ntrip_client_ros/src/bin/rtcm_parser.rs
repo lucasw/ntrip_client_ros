@@ -39,7 +39,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     {
         let rtcm_topic = remaps.get("rtcm").context("no rtcm topic found")?;
-        let mut rtcm_sub = nh.subscribe::<mavros_msgs::RTCM>(rtcm_topic, 4).await?;
+        let mut rtcm_sub = nh.subscribe::<mavros_msgs::RTCM>(rtcm_topic, 10).await?;
 
         {
             tokio::spawn(async move {
