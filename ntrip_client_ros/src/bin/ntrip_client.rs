@@ -55,10 +55,10 @@ async fn main() -> Result<(), anyhow::Error> {
 
     {
         let rtcm_topic = remaps.get("rtcm").context("no rtcm topic found")?;
-        let rtcm_pub = nh.advertise::<RTCM>(rtcm_topic, 3, false).await?;
+        let rtcm_pub = nh.advertise::<RTCM>(rtcm_topic, 10, false).await?;
 
         let nmea_topic = remaps.get("nmea").context("no nmea topic found")?;
-        let mut nmea_sub = nh.subscribe::<nmea_msgs::Sentence>(nmea_topic, 2).await?;
+        let mut nmea_sub = nh.subscribe::<nmea_msgs::Sentence>(nmea_topic, 10).await?;
 
         let host = params.get("host").unwrap();
         let port = params.get("port").unwrap();
