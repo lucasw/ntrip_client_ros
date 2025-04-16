@@ -26,3 +26,11 @@ git = "https://github.com/lucasw/tf_roslibrust"
 # even if this is the default branch it won't match with dependencies that specify it explicitly
 # (which vimjay below does, so need to add it here)
 version = "0.2.5"
+
+[[bin]]
+name = "ntrip_client_ros"
+path = "src/bin/ntrip_client.rs"
+
+[[bin]]
+name = "rtcm_parser_ros"
+path = "src/bin/rtcm_parser.rs"
