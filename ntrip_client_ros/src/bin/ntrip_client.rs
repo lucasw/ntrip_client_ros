@@ -55,9 +55,11 @@ async fn main() -> Result<(), anyhow::Error> {
 
     {
         let rtcm_topic = remaps.get("rtcm").context("no rtcm topic found")?;
+        log::info!("rtcm topic: {rtcm_topic}");
         let rtcm_pub = nh.advertise::<RTCM>(rtcm_topic, 10, false).await?;
 
         let nmea_topic = remaps.get("nmea").context("no nmea topic found")?;
+        log::info!("nmea topic: {nmea_topic}");
         let mut nmea_sub = nh.subscribe::<nmea_msgs::Sentence>(nmea_topic, 10).await?;
 
         let host = params.get("host").unwrap();
@@ -75,6 +77,8 @@ async fn main() -> Result<(), anyhow::Error> {
         let mut stream = ntrip_client::ntrip_client::init_stream(connection)
             .await
             .unwrap();
+
+        log::info!("stream: {stream:?}");
 
         let (nmea_sender, mut nmea_receiver) = mpsc::channel(10);
 
@@ -97,8 +101,11 @@ async fn main() -> Result<(), anyhow::Error> {
 
         // TODO(lucasw) need an NtripClient to own this
         let mut parser = RtcmParser::new();
+        let mut buffer = [0; 256];
+        let mut nmea_count = 0;
+        let mut rtcm_count = 0;
 
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(10));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(4000));
         loop {
             tokio::select! {
                 _ = tokio::signal::ctrl_c() => {
@@ -106,27 +113,41 @@ async fn main() -> Result<(), anyhow::Error> {
                     // TODO(lucasw) need to bring down the egui app too
                     break;
                 }
-                _ = interval.tick() => {
-                    // these details belong in NtripClient impl
-                    let mut buffer = [0; 256];
+                rv = stream.read(&mut buffer) => {
+                    match rv {
+                        Ok(n) => {
+                            if n == 0 {
+                                // TODO(lucasw) eventually the stream read times out
+                                // and returns 0 here if nmea messages are continually sent
+                                // may want to be able to handle that instead of exiting
+                                log::error!("0 bytes read, exiting");
+                                break;
+                            }
 
-                    // TODO(lucasw) look at failure of timeout or read() instead of just '??'
-                    let n = timeout(Duration::from_secs(5), stream.read(&mut buffer)).await??;
-                    if n == 0 {
-                        continue;
-                    }
-
-                    let messages = parser.parse(&buffer[..n]);
-                    for message in messages {
-                        let mut rtcm = RTCM::default();
-                        rtcm.header.stamp = tf_util::stamp_now();
-                        rtcm.header.frame_id = "odom".to_string();
-                        rtcm.data = message;
-                        rtcm_pub.publish(&rtcm).await?;
+                            let messages = parser.parse(&buffer[..n]);
+                            for message in messages {
+                                let mut rtcm = RTCM::default();
+                                rtcm.header.stamp = tf_util::stamp_now();
+                                rtcm.header.frame_id = "odom".to_string();
+                                rtcm.data = message;
+                                rtcm_pub.publish(&rtcm).await?;
+                                rtcm_count += 1;
+                            }
+                        }
+                        Err(err) => {
+                            log::error!("stream read error: {err:?}");
+                        }
                     }
                 }
                 Some(nmea) = nmea_receiver.recv() => {
                     stream.write_all(nmea.sentence.as_bytes()).await?;
+                    nmea_count += 1;
+                    log::debug!("sent nmea");
+                }
+                _ = interval.tick() => {
+                    // TODO(lucasw) look at time elapsed since last rtcm or nmea message handled
+                    // and error out if too long
+                    log::info!("nmea count: {nmea_count}, rtcm count: {rtcm_count}");
                 }
             }
         }
